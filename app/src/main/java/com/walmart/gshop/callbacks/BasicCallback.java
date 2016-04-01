@@ -1,4 +1,4 @@
-package me.kevingleason.pubnubchat.callbacks;
+package com.walmart.gshop.callbacks;
 
 import android.util.Log;
 

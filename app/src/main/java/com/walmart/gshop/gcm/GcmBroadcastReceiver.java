@@ -1,4 +1,4 @@
-package me.kevingleason.pubnubchat.gcm;
+package com.walmart.gshop.gcm;
 
 import android.app.Activity;
 import android.content.ComponentName;

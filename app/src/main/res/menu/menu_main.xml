@@ -1,13 +1,31 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:context=".MainActivity">
+    tools:context="com.walmart.gshop.MainActivity">
 
-    <item android:id="@+id/action_here_now" android:title="0"
-        android:orderInCategory="1" android:showAsAction="ifRoom" />
-    <item android:id="@+id/action_gcm_register" android:title="@string/action_gcm_register"
-        android:orderInCategory="2" android:showAsAction="never" />
-    <item android:id="@+id/action_gcm_unregister" android:title="@string/action_gcm_unregister"
-        android:orderInCategory="3" android:showAsAction="never" />
-    <item android:id="@+id/action_sign_out" android:title="@string/action_sign_out"
-        android:orderInCategory="4" android:showAsAction="never" />
+    <item
+        android:id="@+id/action_here_now"
+        android:orderInCategory="1"
+        android:title="0"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_gcm_register"
+        android:orderInCategory="2"
+        android:title="@string/action_gcm_register"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_gcm_unregister"
+        android:orderInCategory="3"
+        android:title="@string/action_gcm_unregister"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_sign_out"
+        android:orderInCategory="4"
+        android:title="@string/action_sign_out"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_where_now"
+        android:orderInCategory="5"
+        android:title="@string/action_where_now"
+        app:showAsAction="never" />
 </menu>

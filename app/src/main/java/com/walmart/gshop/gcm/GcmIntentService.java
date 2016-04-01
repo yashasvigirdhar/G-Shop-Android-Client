@@ -1,4 +1,4 @@
-package me.kevingleason.pubnubchat.gcm;
+package com.walmart.gshop.gcm;
 
 import android.app.IntentService;
 import android.app.Notification;
@@ -13,9 +13,9 @@ import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 import com.google.android.gms.gcm.GoogleCloudMessaging;
+import com.walmart.gshop.Constants;
+import com.walmart.gshop.MainActivity;
 
-import me.kevingleason.pubnubchat.Constants;
-import me.kevingleason.pubnubchat.MainActivity;
 import me.kevingleason.pubnubchat.R;
 
 /**

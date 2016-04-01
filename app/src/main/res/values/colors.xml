@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="pn_red">#d02129</color>
-    <color name="pn_blue">#ff19a2c6</color>
-    <color name="white">#FFF</color>
+    <color name="colorPrimary">#00796B</color>
+    <color name="colorPrimaryDark">#004D40</color>
+    <color name="colorAccent">#C62828</color>
+    <color name="yellow">#ff0</color>
+    <color name="placesActivityBackground">#FFF</color>
+    <color name="cardsBackground">#F5F5F5</color>
+    <color name="black_overlay">#66000000</color>
 </resources>

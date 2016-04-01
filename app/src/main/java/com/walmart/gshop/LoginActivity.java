@@ -1,4 +1,4 @@
-package me.kevingleason.pubnubchat;
+package com.walmart.gshop;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -8,6 +8,10 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
+
+import com.walmart.gshop.activities.ChannelListActivity;
+
+import me.kevingleason.pubnubchat.R;
 
 /**
  * Login Activity for the first time the app is opened, or when a user clicks the sign out button.
@@ -25,7 +29,7 @@ public class LoginActivity extends Activity {
         mUsername = (EditText) findViewById(R.id.login_username);
 
         Bundle extras = getIntent().getExtras();
-        if (extras != null){
+        if (extras != null) {
             String lastUsername = extras.getString("oldUsername", "");
             mUsername.setText(lastUsername);
         }
@@ -56,25 +60,29 @@ public class LoginActivity extends Activity {
 
     /**
      * Takes the username from the EditText, check its validity and saves it if valid.
-     *   Then, redirects to the MainActivity.
+     * Then, redirects to the MainActivity.
+     *
      * @param view Button clicked to trigger call to joinChat
      */
-    public void joinChat(View view){
+    public void joinChat(View view) {
         String username = mUsername.getText().toString();
         if (!validUsername(username))
             return;
 
-        SharedPreferences sp = getSharedPreferences(Constants.CHAT_PREFS,MODE_PRIVATE);
+        SharedPreferences sp = getSharedPreferences(Constants.CHAT_PREFS, MODE_PRIVATE);
         SharedPreferences.Editor edit = sp.edit();
         edit.putString(Constants.CHAT_USERNAME, username);
         edit.apply();
 
-        Intent intent = new Intent(this, MainActivity.class);
+        ((MyApplication) getApplication()).getmPubNub().setUUID(username);
+        
+        Intent intent = new Intent(this, ChannelListActivity.class);
         startActivity(intent);
     }
 
     /**
      * Optional function to specify what a username in your chat app can look like.
+     *
      * @param username The name entered by a user.
      * @return
      */

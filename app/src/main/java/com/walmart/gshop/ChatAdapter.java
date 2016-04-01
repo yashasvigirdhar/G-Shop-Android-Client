@@ -1,4 +1,4 @@
-package me.kevingleason.pubnubchat;
+package com.walmart.gshop;
 
 import android.content.Context;
 import android.view.LayoutInflater;
@@ -7,13 +7,15 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
+import com.walmart.gshop.adt.ChatMessage;
+
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import me.kevingleason.pubnubchat.adt.ChatMessage;
+import me.kevingleason.pubnubchat.R;
 
 /**
  * Created by GleasonK on 7/11/15.

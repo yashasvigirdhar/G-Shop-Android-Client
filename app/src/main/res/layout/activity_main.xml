@@ -2,16 +2,17 @@
     xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:windowSoftInputMode="adjustPan"
-    tools:context=".MainActivity">
+    tools:context="com.walmart.gshop.MainActivity">
 
 
     <Button
         android:id="@+id/channel_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        style="@style/AppTheme.ChannelBar"
         android:textAppearance="?android:attr/textAppearanceLarge"
         android:text="Channel"
+        android:background="@color/colorPrimary"
+        android:textColor="#FFF"
         android:onClick="changeChannel"
         android:layout_alignParentTop="true" />
 
@@ -31,7 +32,6 @@
 
     <LinearLayout
         android:id="@+id/msg_box"
-        style="@style/AppTheme.MessageBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
@@ -50,8 +50,8 @@
 
         <Button
             android:text="send"
-            android:background="@color/pn_blue"
-            android:textColor="@color/white"
+            android:background="@color/colorPrimary"
+            android:textColor="#FFF"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"

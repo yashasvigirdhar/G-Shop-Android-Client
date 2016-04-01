@@ -1,4 +1,4 @@
-package me.kevingleason.pubnubchat.adt;
+package com.walmart.gshop.adt;
 
 /**
  * Created by GleasonK on 7/11/15.

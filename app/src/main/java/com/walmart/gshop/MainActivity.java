@@ -1,4 +1,4 @@
-package me.kevingleason.pubnubchat;
+package com.walmart.gshop;
 
 import android.app.AlertDialog;
 import android.app.ListActivity;
@@ -30,6 +30,8 @@ import com.pubnub.api.PnMessage;
 import com.pubnub.api.Pubnub;
 import com.pubnub.api.PubnubError;
 import com.pubnub.api.PubnubException;
+import com.walmart.gshop.adt.ChatMessage;
+import com.walmart.gshop.callbacks.BasicCallback;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -41,19 +43,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import me.kevingleason.pubnubchat.adt.ChatMessage;
-import me.kevingleason.pubnubchat.callbacks.BasicCallback;
+import me.kevingleason.pubnubchat.R;
 
 /**
  * Main Activity is where all the magic happens. To keep this demo simple I did not use fragment
- *   views, simply a ListView that is populated by a custom adapter, ChatAdapter. If you want to
- *   make this chat app your own, go to http://www.pubnub.com/get-started/ and replace the Pub/Sub
- *   keys found in Constants.java, then be sure to enable Storage & Playback, Presence, and Push.
- *   For all features to work, you will also need to Register for GCM Messaging and update your
- *   sender ID as well.
+ * views, simply a ListView that is populated by a custom adapter, ChatAdapter. If you want to
+ * make this chat app your own, go to http://www.pubnub.com/get-started/ and replace the Pub/Sub
+ * keys found in Constants.java, then be sure to enable Storage & Playback, Presence, and Push.
+ * For all features to work, you will also need to Register for GCM Messaging and update your
+ * sender ID as well.
  * Sample data to test from console:
  * {"type":"groupMessage","data":{"chatUser":"Dev","chatMsg":"Hello World!","chatTime":1436642192966}}
- *
  */
 public class MainActivity extends ListActivity {
     private Pubnub mPubNub;
@@ -65,7 +65,7 @@ public class MainActivity extends ListActivity {
     private SharedPreferences mSharedPrefs;
 
     private String username;
-    private String channel  = "MainChat";
+    private String channel = "MainChat";
 
     private GoogleCloudMessaging gcm;
     private String gcmRegId;
@@ -76,19 +76,18 @@ public class MainActivity extends ListActivity {
         setContentView(R.layout.activity_main);
 
         mSharedPrefs = getSharedPreferences(Constants.CHAT_PREFS, MODE_PRIVATE);
-        if (!mSharedPrefs.contains(Constants.CHAT_USERNAME)){
-            Intent toLogin = new Intent(this, LoginActivity.class);
-            startActivity(toLogin);
-            return;
-        }
+
+        mPubNub = ((MyApplication) getApplication()).getmPubNub();
 
         Bundle extras = getIntent().getExtras();
-        if (extras != null){
-            Log.d("Main-bundle",extras.toString() + " Has Chat: " + extras.getString(Constants.CHAT_ROOM));
-            if (extras.containsKey(Constants.CHAT_ROOM)) this.channel = extras.getString(Constants.CHAT_ROOM);
+        if (extras != null) {
+            Log.d("Main-bundle", extras.toString() + " Has Chat: " + extras.getString(Constants.CHAT_ROOM));
+            if (extras.containsKey(Constants.CHAT_ROOM))
+                this.channel = extras.getString(Constants.CHAT_ROOM);
         }
 
-        this.username = mSharedPrefs.getString(Constants.CHAT_USERNAME,"Anonymous");
+        this.username = mSharedPrefs.getString(Constants.CHAT_USERNAME, "Anonymous");
+
         this.mListView = getListView();
         this.mChatAdapter = new ChatAdapter(this, new ArrayList<ChatMessage>());
         this.mChatAdapter.userPresence(this.username, "join"); // Set user to online. Status changes handled in presence
@@ -126,7 +125,7 @@ public class MainActivity extends ListActivity {
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        switch(id){
+        switch (id) {
             case R.id.action_here_now:
                 hereNow(true);
                 return true;
@@ -139,15 +138,18 @@ public class MainActivity extends ListActivity {
             case R.id.action_gcm_unregister:
                 gcmUnregister();
                 return true;
+            case R.id.action_where_now:
+                whereNow();
+                return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
     /**
      * Might want to unsubscribe from PubNub here and create background service to listen while
-     *   app is not in foreground.
+     * app is not in foreground.
      * PubNub will stop subscribing when screen is turned off for this demo, messages will be loaded
-     *   when app is opened through a call to history.
+     * when app is opened through a call to history.
      * The best practice would be creating a background service in onStop to handle messages.
      */
     @Override
@@ -159,23 +161,22 @@ public class MainActivity extends ListActivity {
 
     /**
      * Instantiate PubNub object if it is null. Subscribe to channel and pull old messages via
-     *   history.
+     * history.
      */
     @Override
     protected void onRestart() {
         super.onRestart();
-        if (this.mPubNub==null){
+        if (this.mPubNub == null) {
             initPubNub();
         } else {
-            subscribeWithPresence();
+            subscribeChannelWithPresence();
             history();
         }
     }
 
     /**
      * I remove the PubNub object in onDestroy since turning the screen off triggers onStop and
-     *   I wanted PubNub to receive messages while the screen is off.
-     *
+     * I wanted PubNub to receive messages while the screen is off.
      */
     @Override
     protected void onDestroy() {
@@ -184,34 +185,36 @@ public class MainActivity extends ListActivity {
 
     /**
      * Instantiate PubNub object with username as UUID
-     *   Then subscribe to the current channel with presence.
-     *   Finally, populate the listview with past messages from history
+     * Then subscribe to the current channel with presence.
+     * Finally, populate the listview with past messages from history
      */
-    private void initPubNub(){
-        this.mPubNub = new Pubnub(Constants.PUBLISH_KEY, Constants.SUBSCRIBE_KEY);
-        this.mPubNub.setUUID(this.username);
-        subscribeWithPresence();
+    private void initPubNub() {
+        subscribeChannelWithPresence();
         history();
         gcmRegister();
     }
 
     /**
      * Use PubNub to send any sort of data
+     *
      * @param type The type of the data, used to differentiate groupMessage from directMessage
      * @param data The payload of the publish
      */
-    public void publish(String type, JSONObject data){
+    public void publish(String type, JSONObject data) {
         JSONObject json = new JSONObject();
         try {
             json.put("type", type);
             json.put("data", data);
-        } catch (JSONException e) { e.printStackTrace(); }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
 
         this.mPubNub.publish(this.channel, json, new BasicCallback());
     }
 
     /**
      * Update here now number, uses a call to the pubnub hereNow function.
+     *
      * @param displayUsers If true, display a modal of users in room.
      */
     public void hereNow(final boolean displayUsers) {
@@ -235,7 +238,33 @@ public class MainActivity extends ListActivity {
                                 mHereNow.setTitle(String.valueOf(occ));
                             mChatAdapter.setOnlineNow(usersOnline);
                             if (displayUsers)
-                                alertHereNow(usersOnline);
+                                alertHereNow(usersOnline, "Here now");
+                        }
+                    });
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    public void whereNow() {
+        this.mPubNub.whereNow(this.mPubNub.getUUID(), new Callback() {
+            @Override
+            public void successCallback(String channel, Object response) {
+                try {
+                    JSONObject json = (JSONObject) response;
+                    Log.i("Where now response", json.toString());
+                    final JSONArray channels = json.getJSONArray("channels");
+                    Log.d("JSON_RESP", "Where Now: " + json.toString());
+                    final Set<String> usersOnline = new HashSet<>();
+                    for (int i = 0; i < channels.length(); i++) {
+                        usersOnline.add(channels.getString(i));
+                    }
+                    MainActivity.this.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            alertHereNow(usersOnline, "Where now");
                         }
                     });
                 } catch (JSONException e) {
@@ -247,9 +276,9 @@ public class MainActivity extends ListActivity {
 
     /**
      * Called at login time, sets meta-data of users' log-in times using the PubNub State API.
-     *   Information is retrieved in getStateLogin
+     * Information is retrieved in getStateLogin
      */
-    public void setStateLogin(){
+    public void setStateLogin() {
         Callback callback = new Callback() {
             @Override
             public void successCallback(String channel, Object response) {
@@ -260,17 +289,19 @@ public class MainActivity extends ListActivity {
             JSONObject state = new JSONObject();
             state.put(Constants.STATE_LOGIN, System.currentTimeMillis());
             this.mPubNub.setState(this.channel, this.mPubNub.getUUID(), state, callback);
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
-        catch (JSONException e) { e.printStackTrace(); }
     }
 
     /**
      * Get state information. Information is deleted when user unsubscribes from channel
-     *   so display a user not online message if there is no UUID data attached to the
-     *   channel's state
+     * so display a user not online message if there is no UUID data attached to the
+     * channel's state
+     *
      * @param user
      */
-    public void getStateLogin(final String user){
+    public void getStateLogin(final String user) {
         Callback callback = new Callback() {
             @Override
             public void successCallback(String channel, Object response) {
@@ -292,7 +323,9 @@ public class MainActivity extends ListActivity {
                     });
 
                     Log.d("PUBNUB", "State: " + response.toString());
-                } catch (JSONException e){ e.printStackTrace(); }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
             }
         };
         this.mPubNub.getState(this.channel, user, callback);
@@ -300,22 +333,22 @@ public class MainActivity extends ListActivity {
 
     /**
      * Subscribe to channel, when subscribe connection is established, in connectCallback, subscribe
-     *   to presence, set login time with setStateLogin and update hereNow information.
+     * to presence, set login time with setStateLogin and update hereNow information.
      * When a message is received, in successCallback, get the ChatMessage information from the
-     *   received JSONObject and finally put it into the listview's ChatAdapter.
+     * received JSONObject and finally put it into the listview's ChatAdapter.
      * Chat adapter calls notifyDatasetChanged() which updates UI, meaning must run on UI thread.
      */
-    public void subscribeWithPresence(){
+    public void subscribeChannelWithPresence() {
         Callback subscribeCallback = new Callback() {
             @Override
             public void successCallback(String channel, Object message) {
-                if (message instanceof JSONObject){
+                if (message instanceof JSONObject) {
                     try {
                         JSONObject jsonObj = (JSONObject) message;
                         JSONObject json = jsonObj.getJSONObject("data");
                         String name = json.getString(Constants.JSON_USER);
-                        String msg  = json.getString(Constants.JSON_MSG);
-                        long time   = json.getLong(Constants.JSON_TIME);
+                        String msg = json.getString(Constants.JSON_MSG);
+                        long time = json.getLong(Constants.JSON_TIME);
                         if (name.equals(mPubNub.getUUID())) return; // Ignore own messages
                         final ChatMessage chatMsg = new ChatMessage(name, msg, time);
                         MainActivity.this.runOnUiThread(new Runnable() {
@@ -324,14 +357,16 @@ public class MainActivity extends ListActivity {
                                 mChatAdapter.addMessage(chatMsg);
                             }
                         });
-                    } catch (JSONException e){ e.printStackTrace(); }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
                 }
                 Log.d("PUBNUB", "Channel: " + channel + " Msg: " + message.toString());
             }
 
             @Override
             public void connectCallback(String channel, Object message) {
-                Log.d("Subscribe","Connected! " + message.toString());
+                Log.d("Subscribe", "Connected! " + message.toString());
                 hereNow(false);
                 setStateLogin();
             }
@@ -339,23 +374,25 @@ public class MainActivity extends ListActivity {
         try {
             mPubNub.subscribe(this.channel, subscribeCallback);
             presenceSubscribe();
-        } catch (PubnubException e){ e.printStackTrace(); }
+        } catch (PubnubException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
      * Subscribe to presence. When user join or leave are detected, update the hereNow number
-     *   as well as add/remove current user from the chat adapter's userPresence array.
-     *   This array is used to see what users are currently online and display a green dot next
-     *   to users who are online.
+     * as well as add/remove current user from the chat adapter's userPresence array.
+     * This array is used to see what users are currently online and display a green dot next
+     * to users who are online.
      */
-    public void presenceSubscribe()  {
+    public void presenceSubscribe() {
         Callback callback = new Callback() {
             @Override
             public void successCallback(String channel, Object response) {
-                Log.i("PN-pres","Pres: " + response.toString() + " class: " + response.getClass().toString());
-                if (response instanceof JSONObject){
+                Log.i("PN-pres", "Pres: " + response.toString() + " class: " + response.getClass().toString());
+                if (response instanceof JSONObject) {
                     JSONObject json = (JSONObject) response;
-                    Log.d("PN-main","Presence: " + json.toString());
+                    Log.d("PN-main", "Presence: " + json.toString());
                     try {
                         final int occ = json.getInt("occupancy");
                         final String user = json.getString("uuid");
@@ -364,10 +401,13 @@ public class MainActivity extends ListActivity {
                             @Override
                             public void run() {
                                 mChatAdapter.userPresence(user, action);
-                                mHereNow.setTitle(String.valueOf(occ));
+                                if (mHereNow != null)
+                                    mHereNow.setTitle(String.valueOf(occ));
                             }
                         });
-                    } catch (JSONException e){ e.printStackTrace(); }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
 
@@ -378,14 +418,16 @@ public class MainActivity extends ListActivity {
         };
         try {
             this.mPubNub.presence(this.channel, callback);
-        } catch (PubnubException e) { e.printStackTrace(); }
+        } catch (PubnubException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
      * Get last 100 messages sent on current channel from history.
      */
-    public void history(){
-        this.mPubNub.history(this.channel,100,false,new Callback() {
+    public void history() {
+        this.mPubNub.history(this.channel, 100, false, new Callback() {
             @Override
             public void successCallback(String channel, final Object message) {
                 try {
@@ -410,7 +452,7 @@ public class MainActivity extends ListActivity {
                     MainActivity.this.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            Toast.makeText(MainActivity.this,"RUNNIN",Toast.LENGTH_SHORT).show();
+                            Toast.makeText(MainActivity.this, "RUNNIN", Toast.LENGTH_SHORT).show();
                             mChatAdapter.setMessages(chatMsgs);
                         }
                     });
@@ -428,9 +470,9 @@ public class MainActivity extends ListActivity {
 
     /**
      * Log out, remove username from SharedPreferences, unsubscribe from PubNub, and send user back
-     *   to the LoginActivity
+     * to the LoginActivity
      */
-    public void signOut(){
+    public void signOut() {
         this.mPubNub.unsubscribeAll();
         SharedPreferences.Editor edit = mSharedPrefs.edit();
         edit.remove(Constants.CHAT_USERNAME);
@@ -443,7 +485,7 @@ public class MainActivity extends ListActivity {
     /**
      * Setup the listview to scroll to bottom anytime it receives a message.
      */
-    private void setupAutoScroll(){
+    private void setupAutoScroll() {
         this.mChatAdapter.registerDataSetObserver(new DataSetObserver() {
             @Override
             public void onChanged() {
@@ -457,7 +499,7 @@ public class MainActivity extends ListActivity {
     /**
      * On message click, display the last time the user logged in.
      */
-    private void setupListView(){
+    private void setupListView() {
         this.mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
@@ -469,9 +511,10 @@ public class MainActivity extends ListActivity {
 
     /**
      * Publish message to current channel.
+     *
      * @param view The 'SEND' Button which is clicked to trigger a sendMessage call.
      */
-    public void sendMessage(View view){
+    public void sendMessage(View view) {
         String message = mMessageET.getText().toString();
         if (message.equals("")) return;
         mMessageET.setText("");
@@ -479,34 +522,36 @@ public class MainActivity extends ListActivity {
         try {
             JSONObject json = new JSONObject();
             json.put(Constants.JSON_USER, chatMsg.getUsername());
-            json.put(Constants.JSON_MSG,  chatMsg.getMessage());
+            json.put(Constants.JSON_MSG, chatMsg.getMessage());
             json.put(Constants.JSON_TIME, chatMsg.getTimeStamp());
             publish(Constants.JSON_GROUP, json);
-        } catch (JSONException e){ e.printStackTrace(); }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
         mChatAdapter.addMessage(chatMsg);
     }
 
     /**
      * Create an alert dialog with a list of users who are here now.
      * When a user's name is clicked, get their state information and display it with Toast.
+     *
      * @param userSet
      */
-    private void alertHereNow(Set<String> userSet){
-        List<String> users = new ArrayList<String>(userSet);
-        LayoutInflater li = LayoutInflater.from(this);
+    private void alertHereNow(Set<String> userSet, String title) {
+        List<String> users = new ArrayList<>(userSet);
         AlertDialog.Builder alertDialog = new AlertDialog.Builder(this);
-        alertDialog.setTitle("Here Now");
+        alertDialog.setTitle(title);
         alertDialog.setNegativeButton("Done", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 dialog.dismiss();
             }
         });
-        final ArrayAdapter<String> hnAdapter = new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,users);
+        final ArrayAdapter<String> hnAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, users);
         alertDialog.setAdapter(hnAdapter, new DialogInterface.OnClickListener() {
             @Override
-            public void onClick(DialogInterface dialog, int which) {
-                String user = hnAdapter.getItem(which);
+            public void onClick(DialogInterface dialog, int position) {
+                String user = hnAdapter.getItem(position);
                 getStateLogin(user);
             }
         });
@@ -515,11 +560,12 @@ public class MainActivity extends ListActivity {
 
     /**
      * Create an alert dialog with a text view to enter a new channel to join. If the channel is
-     *   not empty, unsubscribe from the current channel and join the new one.
-     *   Then, get messages from history and update the channelView which displays current channel.
+     * not empty, unsubscribe from the current channel and join the new one.
+     * Then, get messages from history and update the channelView which displays current channel.
+     *
      * @param view
      */
-    public void changeChannel(View view){
+    public void changeChannel(View view) {
         LayoutInflater li = LayoutInflater.from(this);
         View promptsView = li.inflate(R.layout.channel_change, null);
 
@@ -542,7 +588,7 @@ public class MainActivity extends ListActivity {
                                 mChatAdapter.clearMessages();
                                 channel = newChannel;
                                 mChannelView.setText(channel);
-                                subscribeWithPresence();
+                                subscribeChannelWithPresence();
                                 history();
                             }
                         })
@@ -574,7 +620,7 @@ public class MainActivity extends ListActivity {
             if (gcmRegId.isEmpty()) {
                 registerInBackground();
             } else {
-                Toast.makeText(this,"Registration ID already exists: " + gcmRegId,Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Registration ID already exists: " + gcmRegId, Toast.LENGTH_SHORT).show();
             }
         } else {
             Log.e("GCM-register", "No valid Google Play Services APK found.");
@@ -601,16 +647,19 @@ public class MainActivity extends ListActivity {
             json.put(Constants.GCM_CHAT_ROOM, this.channel);
             gcmMessage.setData(json);
 
+
             PnMessage message = new PnMessage(
                     this.mPubNub,
                     toUser,
                     new BasicCallback(),
                     gcmMessage);
-            message.put("pn_debug",true); // Subscribe to yourchannel-pndebug on console for reports
+            message.put("pn_debug", true); // Subscribe to yourchannel-pndebug on console for reports
             message.publish();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        } catch (PubnubException e) {
+            e.printStackTrace();
         }
-        catch (JSONException e) { e.printStackTrace(); }
-        catch (PubnubException e) { e.printStackTrace(); }
     }
 
     private boolean checkPlayServices() {
@@ -648,10 +697,10 @@ public class MainActivity extends ListActivity {
         this.mPubNub.enablePushNotificationsOnChannel(this.username, regId, new BasicCallback());
     }
 
-    private class RegisterTask extends AsyncTask<Void, Void, String>{
+    private class RegisterTask extends AsyncTask<Void, Void, String> {
         @Override
         protected String doInBackground(Void... params) {
-            String msg="";
+            String msg = "";
             try {
                 if (gcm == null) {
                     gcm = GoogleCloudMessaging.getInstance(MainActivity.this);
@@ -663,7 +712,7 @@ public class MainActivity extends ListActivity {
 
                 storeRegistrationId(gcmRegId);
                 Log.i("GCM-register", msg);
-            } catch (IOException e){
+            } catch (IOException e) {
                 e.printStackTrace();
             }
             return msg;
