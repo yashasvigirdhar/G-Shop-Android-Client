@@ -1,24 +1,23 @@
-package com.walmart.gshop;
+package com.walmart.gshop.activities;
 
 import android.app.AlertDialog;
-import android.app.ListActivity;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.database.DataSetObserver;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ListView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -30,8 +29,11 @@ import com.pubnub.api.PnMessage;
 import com.pubnub.api.Pubnub;
 import com.pubnub.api.PubnubError;
 import com.pubnub.api.PubnubException;
-import com.walmart.gshop.adt.ChatMessage;
+import com.walmart.gshop.Constants;
+import com.walmart.gshop.MyApplication;
+import com.walmart.gshop.adapters.ChatRecyclerViewAdapter;
 import com.walmart.gshop.callbacks.BasicCallback;
+import com.walmart.gshop.models.ChatMessage;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -55,13 +57,17 @@ import me.kevingleason.pubnubchat.R;
  * Sample data to test from console:
  * {"type":"groupMessage","data":{"chatUser":"Dev","chatMsg":"Hello World!","chatTime":1436642192966}}
  */
-public class MainActivity extends ListActivity {
+public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewAdapter.ChatMessageClickListener {
     private Pubnub mPubNub;
-    private Button mChannelView;
+
     private EditText mMessageET;
     private MenuItem mHereNow;
-    private ListView mListView;
-    private ChatAdapter mChatAdapter;
+
+    private RecyclerView mRecyclerView;
+    private ChatRecyclerViewAdapter mAdapter;
+
+    Toolbar mToolbar;
+
     private SharedPreferences mSharedPrefs;
 
     private String username;
@@ -88,16 +94,22 @@ public class MainActivity extends ListActivity {
 
         this.username = mSharedPrefs.getString(Constants.CHAT_USERNAME, "Anonymous");
 
-        this.mListView = getListView();
-        this.mChatAdapter = new ChatAdapter(this, new ArrayList<ChatMessage>());
-        this.mChatAdapter.userPresence(this.username, "join"); // Set user to online. Status changes handled in presence
-        setupAutoScroll();
-        this.mListView.setAdapter(mChatAdapter);
-        setupListView();
+        mRecyclerView = (RecyclerView) findViewById(R.id.recyclerViewChat);
+        mRecyclerView.setHasFixedSize(true);
+        RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(this);
+        mRecyclerView.setLayoutManager(mLayoutManager);
+
+        mAdapter = new ChatRecyclerViewAdapter(this, new ArrayList<ChatMessage>());
+        mAdapter.userPresence(this.username, "join"); // Set user to online. Status changes handled in presence
+        mRecyclerView.setAdapter(mAdapter);
 
         this.mMessageET = (EditText) findViewById(R.id.message_et);
-        this.mChannelView = (Button) findViewById(R.id.channel_bar);
-        this.mChannelView.setText(this.channel);
+
+        mToolbar = (Toolbar) findViewById(R.id.toolbarChat);
+        setSupportActionBar(mToolbar);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setTitle(channel);
+
 
         initPubNub();
     }
@@ -231,12 +243,12 @@ public class MainActivity extends ListActivity {
                     for (int i = 0; i < hereNowJSON.length(); i++) {
                         usersOnline.add(hereNowJSON.getString(i));
                     }
-                    MainActivity.this.runOnUiThread(new Runnable() {
+                    ChatActivity.this.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             if (mHereNow != null)
                                 mHereNow.setTitle(String.valueOf(occ));
-                            mChatAdapter.setOnlineNow(usersOnline);
+                            mAdapter.setOnlineNow(usersOnline);
                             if (displayUsers)
                                 alertHereNow(usersOnline, "Here now");
                         }
@@ -261,7 +273,7 @@ public class MainActivity extends ListActivity {
                     for (int i = 0; i < channels.length(); i++) {
                         usersOnline.add(channels.getString(i));
                     }
-                    MainActivity.this.runOnUiThread(new Runnable() {
+                    ChatActivity.this.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             alertHereNow(usersOnline, "Where now");
@@ -311,13 +323,13 @@ public class MainActivity extends ListActivity {
                     final boolean online = state.has(Constants.STATE_LOGIN);
                     final long loginTime = online ? state.getLong(Constants.STATE_LOGIN) : 0;
 
-                    MainActivity.this.runOnUiThread(new Runnable() {
+                    ChatActivity.this.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             if (!online)
-                                Toast.makeText(MainActivity.this, user + " is not online.", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(ChatActivity.this, user + " is not online.", Toast.LENGTH_SHORT).show();
                             else
-                                Toast.makeText(MainActivity.this, user + " logged in since " + ChatAdapter.formatTimeStamp(loginTime), Toast.LENGTH_SHORT).show();
+                                Toast.makeText(ChatActivity.this, user + " logged in since " + ChatRecyclerViewAdapter.formatTimeStamp(loginTime), Toast.LENGTH_SHORT).show();
 
                         }
                     });
@@ -351,10 +363,17 @@ public class MainActivity extends ListActivity {
                         long time = json.getLong(Constants.JSON_TIME);
                         if (name.equals(mPubNub.getUUID())) return; // Ignore own messages
                         final ChatMessage chatMsg = new ChatMessage(name, msg, time);
-                        MainActivity.this.runOnUiThread(new Runnable() {
+                        ChatActivity.this.runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                mChatAdapter.addMessage(chatMsg);
+                                mAdapter.addMessage(chatMsg);
+                                mRecyclerView.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        //call smooth scroll
+                                        mRecyclerView.smoothScrollToPosition(mAdapter.getItemCount());
+                                    }
+                                });
                             }
                         });
                     } catch (JSONException e) {
@@ -397,10 +416,10 @@ public class MainActivity extends ListActivity {
                         final int occ = json.getInt("occupancy");
                         final String user = json.getString("uuid");
                         final String action = json.getString("action");
-                        MainActivity.this.runOnUiThread(new Runnable() {
+                        ChatActivity.this.runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                mChatAdapter.userPresence(user, action);
+                                mAdapter.userPresence(user, action);
                                 if (mHereNow != null)
                                     mHereNow.setTitle(String.valueOf(occ));
                             }
@@ -427,7 +446,7 @@ public class MainActivity extends ListActivity {
      * Get last 100 messages sent on current channel from history.
      */
     public void history() {
-        this.mPubNub.history(this.channel, 100, false, new Callback() {
+        mPubNub.history(channel, 100, false, new Callback() {
             @Override
             public void successCallback(String channel, final Object message) {
                 try {
@@ -449,11 +468,11 @@ public class MainActivity extends ListActivity {
                         }
                     }
 
-                    MainActivity.this.runOnUiThread(new Runnable() {
+                    ChatActivity.this.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            Toast.makeText(MainActivity.this, "RUNNIN", Toast.LENGTH_SHORT).show();
-                            mChatAdapter.setMessages(chatMsgs);
+                            Toast.makeText(ChatActivity.this, "RUNNIN", Toast.LENGTH_SHORT).show();
+                            mAdapter.setMessages(chatMsgs);
                         }
                     });
                 } catch (JSONException e) {
@@ -473,40 +492,13 @@ public class MainActivity extends ListActivity {
      * to the LoginActivity
      */
     public void signOut() {
-        this.mPubNub.unsubscribeAll();
+        mPubNub.unsubscribeAll();
         SharedPreferences.Editor edit = mSharedPrefs.edit();
         edit.remove(Constants.CHAT_USERNAME);
         edit.apply();
         Intent intent = new Intent(this, LoginActivity.class);
-        intent.putExtra("oldUsername", this.username);
+        intent.putExtra("oldUsername", username);
         startActivity(intent);
-    }
-
-    /**
-     * Setup the listview to scroll to bottom anytime it receives a message.
-     */
-    private void setupAutoScroll() {
-        this.mChatAdapter.registerDataSetObserver(new DataSetObserver() {
-            @Override
-            public void onChanged() {
-                super.onChanged();
-                mListView.setSelection(mChatAdapter.getCount() - 1);
-                // mListView.smoothScrollToPosition(mChatAdapter.getCount()-1);
-            }
-        });
-    }
-
-    /**
-     * On message click, display the last time the user logged in.
-     */
-    private void setupListView() {
-        this.mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                ChatMessage chatMsg = mChatAdapter.getItem(position);
-                sendNotification(chatMsg.getUsername());
-            }
-        });
     }
 
     /**
@@ -528,7 +520,14 @@ public class MainActivity extends ListActivity {
         } catch (JSONException e) {
             e.printStackTrace();
         }
-        mChatAdapter.addMessage(chatMsg);
+        mAdapter.addMessage(chatMsg);
+        mRecyclerView.post(new Runnable() {
+            @Override
+            public void run() {
+                //call smooth scroll
+                mRecyclerView.smoothScrollToPosition(mAdapter.getItemCount());
+            }
+        });
     }
 
     /**
@@ -585,9 +584,9 @@ public class MainActivity extends ListActivity {
                                 if (newChannel.equals("")) return;
 
                                 mPubNub.unsubscribe(channel);
-                                mChatAdapter.clearMessages();
+                                mAdapter.clearMessages();
                                 channel = newChannel;
-                                mChannelView.setText(channel);
+                                mToolbar.setTitle(channel);
                                 subscribeChannelWithPresence();
                                 history();
                             }
@@ -647,7 +646,6 @@ public class MainActivity extends ListActivity {
             json.put(Constants.GCM_CHAT_ROOM, this.channel);
             gcmMessage.setData(json);
 
-
             PnMessage message = new PnMessage(
                     this.mPubNub,
                     toUser,
@@ -697,13 +695,19 @@ public class MainActivity extends ListActivity {
         this.mPubNub.enablePushNotificationsOnChannel(this.username, regId, new BasicCallback());
     }
 
+    @Override
+    public void onItemClick(int position, View v) {
+        ChatMessage chatMsg = mAdapter.getItem(position);
+        sendNotification(chatMsg.getUsername());
+    }
+
     private class RegisterTask extends AsyncTask<Void, Void, String> {
         @Override
         protected String doInBackground(Void... params) {
             String msg = "";
             try {
                 if (gcm == null) {
-                    gcm = GoogleCloudMessaging.getInstance(MainActivity.this);
+                    gcm = GoogleCloudMessaging.getInstance(ChatActivity.this);
                 }
                 gcmRegId = gcm.register(Constants.GCM_SENDER_ID);
                 msg = "Device registered, registration ID: " + gcmRegId;
@@ -724,7 +728,7 @@ public class MainActivity extends ListActivity {
         protected Void doInBackground(Void... params) {
             try {
                 if (gcm == null) {
-                    gcm = GoogleCloudMessaging.getInstance(MainActivity.this);
+                    gcm = GoogleCloudMessaging.getInstance(ChatActivity.this);
                 }
 
                 // Unregister from GCM

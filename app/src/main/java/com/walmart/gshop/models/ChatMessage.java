@@ -1,4 +1,4 @@
-package com.walmart.gshop.adt;
+package com.walmart.gshop.models;
 
 /**
  * Created by GleasonK on 7/11/15.

@@ -10,6 +10,7 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,8 +19,6 @@ import android.widget.EditText;
 import com.pubnub.api.Callback;
 import com.pubnub.api.Pubnub;
 import com.walmart.gshop.Constants;
-import com.walmart.gshop.LoginActivity;
-import com.walmart.gshop.MainActivity;
 import com.walmart.gshop.MyApplication;
 import com.walmart.gshop.adapters.ChannelsRecyclerViewAdapter;
 
@@ -33,7 +32,7 @@ import java.util.List;
 import me.kevingleason.pubnubchat.R;
 
 
-public class ChannelListActivity extends AppCompatActivity implements View.OnClickListener {
+public class ChannelListActivity extends AppCompatActivity implements View.OnClickListener, ChannelsRecyclerViewAdapter.MyClickListener {
 
     private final static String LOG_TAG = "ChannelListActivity";
 
@@ -45,6 +44,8 @@ public class ChannelListActivity extends AppCompatActivity implements View.OnCli
 
     private RecyclerView mRecyclerView;
     private ChannelsRecyclerViewAdapter mAdapter;
+
+    List<String> channelList;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,8 +67,12 @@ public class ChannelListActivity extends AppCompatActivity implements View.OnCli
         mRecyclerView.setLayoutManager(mLayoutManager);
         mAdapter = new ChannelsRecyclerViewAdapter(new ArrayList<String>());
         mRecyclerView.setAdapter(mAdapter);
+        mAdapter.setOnItemClickListener(this);
 
+        channelList = new ArrayList<>();
 
+        Toolbar mToolbar = (Toolbar) findViewById(R.id.toolbarChannelList);
+        setSupportActionBar(mToolbar);
         whereNow();
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fabAddChannel);
@@ -83,7 +88,7 @@ public class ChannelListActivity extends AppCompatActivity implements View.OnCli
                     Log.i("Where now response", json.toString());
                     final JSONArray channels = json.getJSONArray("channels");
                     Log.d("JSON_RESP", "Where Now: " + json.toString());
-                    final List<String> channelList = new ArrayList<>();
+
                     for (int i = 0; i < channels.length(); i++) {
                         channelList.add(channels.getString(i));
                     }
@@ -119,7 +124,7 @@ public class ChannelListActivity extends AppCompatActivity implements View.OnCli
                                     public void onClick(DialogInterface dialog, int id) {
                                         String newChannel = userInput.getText().toString();
                                         if (newChannel.equals("")) return;
-                                        Intent i = new Intent(getBaseContext(), MainActivity.class);
+                                        Intent i = new Intent(getBaseContext(), ChatActivity.class);
                                         i.putExtra(Constants.CHAT_ROOM, newChannel);
                                         startActivity(i);
                                     }
@@ -135,5 +140,12 @@ public class ChannelListActivity extends AppCompatActivity implements View.OnCli
                 break;
         }
 
+    }
+
+    @Override
+    public void onItemClick(int position, View v) {
+        Intent i = new Intent(getBaseContext(), ChatActivity.class);
+        i.putExtra(Constants.CHAT_ROOM, channelList.get(position));
+        startActivity(i);
     }
 }

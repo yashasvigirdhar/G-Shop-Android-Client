@@ -1,4 +1,4 @@
-package com.walmart.gshop;
+package com.walmart.gshop.activities;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -9,6 +9,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 
+import com.walmart.gshop.Constants;
+import com.walmart.gshop.MyApplication;
 import com.walmart.gshop.activities.ChannelListActivity;
 
 import me.kevingleason.pubnubchat.R;
@@ -60,7 +62,7 @@ public class LoginActivity extends Activity {
 
     /**
      * Takes the username from the EditText, check its validity and saves it if valid.
-     * Then, redirects to the MainActivity.
+     * Then, redirects to the ChatActivity.
      *
      * @param view Button clicked to trigger call to joinChat
      */
@@ -75,7 +77,7 @@ public class LoginActivity extends Activity {
         edit.apply();
 
         ((MyApplication) getApplication()).getmPubNub().setUUID(username);
-        
+
         Intent intent = new Intent(this, ChannelListActivity.class);
         startActivity(intent);
     }

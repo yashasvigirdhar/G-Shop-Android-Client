@@ -14,7 +14,7 @@ import android.util.Log;
 
 import com.google.android.gms.gcm.GoogleCloudMessaging;
 import com.walmart.gshop.Constants;
-import com.walmart.gshop.MainActivity;
+import com.walmart.gshop.activities.ChatActivity;
 
 import me.kevingleason.pubnubchat.R;
 
@@ -49,7 +49,7 @@ public class GcmIntentService  extends IntentService {
         NotificationManager mNotificationManager = (NotificationManager)
                 this.getSystemService(Context.NOTIFICATION_SERVICE);
 
-        Intent intent = new Intent(this, MainActivity.class);
+        Intent intent = new Intent(this, ChatActivity.class);
         intent.putExtra(Constants.CHAT_ROOM, chatRoom);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent contentIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
