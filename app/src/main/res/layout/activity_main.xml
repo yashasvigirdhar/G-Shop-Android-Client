@@ -27,14 +27,22 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="3dp"
-        android:layout_above="@+id/msg_box1"
+        android:layout_above="@+id/msg_box"
         android:background="@drawable/light_fade_up" />
 
     <LinearLayout
         android:id="@+id/msg_box"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="horizontal"
         android:layout_alignParentBottom="true">
+
+        <ImageButton
+            android:id="@+id/ibSendMedia"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:src="@mipmap/ic_plus"
+            android:background="@android:color/transparent" />
 
         <EditText
             android:id="@+id/message_et"
@@ -48,11 +56,11 @@
             android:hint="@string/send_message" />
 
         <Button
+            android:id="@+id/bSendMessage"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:background="@color/colorPrimary"
-            android:onClick="sendMessage"
             android:text="send"
             android:textColor="#FFF" />
 

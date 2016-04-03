@@ -22,6 +22,8 @@ public class Constants {
     public static final String JSON_USER = "chatUser";
     public static final String JSON_MSG = "chatMsg";
     public static final String JSON_TIME = "chatTime";
+    public static final String JSON_IS_IMAGE = "isImage";
+    public static final String JSON_IMAGE_URI = "imageUri";
 
     public static final String STATE_LOGIN = "loginTime";
 

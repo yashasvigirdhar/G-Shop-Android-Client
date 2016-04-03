@@ -1,6 +1,7 @@
 package com.walmart.gshop.adapters;
 
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,6 +17,7 @@ import me.kevingleason.pubnubchat.R;
  */
 public class ChannelsRecyclerViewAdapter extends RecyclerView.Adapter<ChannelsRecyclerViewAdapter.DataObjectHolder> {
 
+    String LOG_TAG = "ChannelsRecyclerViewAdapter";
     private List<String> mDataset;
     private static MyClickListener myClickListener;
 
@@ -37,6 +39,7 @@ public class ChannelsRecyclerViewAdapter extends RecyclerView.Adapter<ChannelsRe
     }
 
     public void updateData(List<String> data) {
+        Log.i(LOG_TAG, "update data");
         mDataset = data;
         notifyDataSetChanged();
     }

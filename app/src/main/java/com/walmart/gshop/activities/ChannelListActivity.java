@@ -45,6 +45,7 @@ public class ChannelListActivity extends AppCompatActivity implements View.OnCli
     private RecyclerView mRecyclerView;
     private ChannelsRecyclerViewAdapter mAdapter;
 
+
     List<String> channelList;
 
     @Override
@@ -88,7 +89,7 @@ public class ChannelListActivity extends AppCompatActivity implements View.OnCli
                     Log.i("Where now response", json.toString());
                     final JSONArray channels = json.getJSONArray("channels");
                     Log.d("JSON_RESP", "Where Now: " + json.toString());
-
+                    channelList.clear();
                     for (int i = 0; i < channels.length(); i++) {
                         channelList.add(channels.getString(i));
                     }
@@ -105,6 +106,11 @@ public class ChannelListActivity extends AppCompatActivity implements View.OnCli
         });
     }
 
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        whereNow();
+    }
 
     @Override
     public void onClick(View v) {

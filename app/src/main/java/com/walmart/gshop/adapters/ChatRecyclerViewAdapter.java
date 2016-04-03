@@ -5,6 +5,7 @@ import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.walmart.gshop.models.ChatMessage;
@@ -20,7 +21,7 @@ import me.kevingleason.pubnubchat.R;
 /**
  * Created by yashasvi on 1/21/16.
  */
-public class ChatRecyclerViewAdapter extends RecyclerView.Adapter<ChatRecyclerViewAdapter.DataObjectHolder> {
+public class ChatRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     public static ChatMessageClickListener chatMessageClickListener;
     private Context context;
@@ -35,11 +36,22 @@ public class ChatRecyclerViewAdapter extends RecyclerView.Adapter<ChatRecyclerVi
     }
 
     @Override
-    public DataObjectHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.chat_row_layout, parent, false);
+    public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        RecyclerView.ViewHolder viewHolder = null;
+        LayoutInflater inflater = LayoutInflater.from(parent.getContext());
+        View view;
+        switch (viewType) {
+            case 1:
+                view = inflater.inflate(R.layout.chat_text_row, parent, false);
+                viewHolder = new TextDataObjectHolder(view);
+                break;
+            case 2:
+                view = inflater.inflate(R.layout.chat_image_row, parent, false);
+                viewHolder = new ImageDataObjectHolder(view);
+                break;
 
-        return new DataObjectHolder(view);
+        }
+        return viewHolder;
     }
 
     public void setChatMessageClickListener(ChatMessageClickListener chatMessageClickListener) {
@@ -47,17 +59,46 @@ public class ChatRecyclerViewAdapter extends RecyclerView.Adapter<ChatRecyclerVi
     }
 
     @Override
-    public void onBindViewHolder(DataObjectHolder holder, int position) {
-        ChatMessage chatMsg = this.values.get(position);
+    public int getItemViewType(int position) {
+        if (values.get(position).isImage())
+            return 2;
+        else
+            return 1;
+    }
 
-        holder.user.setText(chatMsg.getUsername());
-        holder.message.setText(chatMsg.getMessage());
-        holder.timeStamp.setText(formatTimeStamp(chatMsg.getTimeStamp()));
-        holder.chatMsg = chatMsg;
-        holder.userPresence.setBackgroundDrawable( // If online show the green presence dot
-                this.onlineNow.contains(chatMsg.getUsername())
-                        ? context.getResources().getDrawable(R.drawable.online_circle)
-                        : null);
+    @Override
+    public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
+        ChatMessage chatMsg = values.get(position);
+
+        switch (holder.getItemViewType()) {
+            case 1:
+                TextDataObjectHolder viewHolder1 = (TextDataObjectHolder) holder;
+                viewHolder1.user.setText(chatMsg.getUsername());
+                viewHolder1.message.setText(chatMsg.getMessage());
+                viewHolder1.timeStamp.setText(formatTimeStamp(chatMsg.getTimeStamp()));
+                viewHolder1.chatMsg = chatMsg;
+                viewHolder1.userPresence.setBackgroundDrawable( // If online show the green presence dot
+                        this.onlineNow.contains(chatMsg.getUsername())
+                                ? context.getResources().getDrawable(R.drawable.online_circle)
+                                : null);
+
+                break;
+            case 2:
+                ImageDataObjectHolder viewHolder2 = (ImageDataObjectHolder) holder;
+                viewHolder2.user.setText(chatMsg.getUsername());
+                viewHolder2.message.setText(chatMsg.getMessage());
+                viewHolder2.image.setImageBitmap(chatMsg.getImage());
+                viewHolder2.timeStamp.setText(formatTimeStamp(chatMsg.getTimeStamp()));
+                viewHolder2.chatMsg = chatMsg;
+                viewHolder2.userPresence.setBackgroundDrawable( // If online show the green presence dot
+                        this.onlineNow.contains(chatMsg.getUsername())
+                                ? context.getResources().getDrawable(R.drawable.online_circle)
+                                : null);
+
+                break;
+        }
+
+
     }
 
     /**
@@ -91,14 +132,15 @@ public class ChatRecyclerViewAdapter extends RecyclerView.Adapter<ChatRecyclerVi
         return values.get(position);
     }
 
-    public static class DataObjectHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
+    public static class TextDataObjectHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
         TextView user;
         TextView message;
         TextView timeStamp;
         View userPresence;
+
         ChatMessage chatMsg;
 
-        public DataObjectHolder(View convertView) {
+        public TextDataObjectHolder(View convertView) {
             super(convertView);
             user = (TextView) convertView.findViewById(R.id.chat_user);
             message = (TextView) convertView.findViewById(R.id.chat_message);
@@ -110,6 +152,32 @@ public class ChatRecyclerViewAdapter extends RecyclerView.Adapter<ChatRecyclerVi
         @Override
         public void onClick(View v) {
             chatMessageClickListener.onItemClick(getAdapterPosition(), v);
+        }
+    }
+
+    public static class ImageDataObjectHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
+        TextView user;
+        TextView message;
+        ImageView image;
+        TextView timeStamp;
+        View userPresence;
+
+        ChatMessage chatMsg;
+
+        public ImageDataObjectHolder(View convertView) {
+            super(convertView);
+            user = (TextView) convertView.findViewById(R.id.chat_user);
+            message = (TextView) convertView.findViewById(R.id.chat_message);
+            image = (ImageView) convertView.findViewById(R.id.ivChatMessage);
+            timeStamp = (TextView) convertView.findViewById(R.id.chat_time);
+            userPresence = convertView.findViewById(R.id.user_presence);
+            itemView.setOnClickListener(this);
+        }
+
+        @Override
+        public void onClick(View v) {
+            if (chatMessageClickListener != null)
+                chatMessageClickListener.onItemClick(getAdapterPosition(), v);
         }
     }
 
@@ -168,7 +236,7 @@ public class ChatRecyclerViewAdapter extends RecyclerView.Adapter<ChatRecyclerVi
     /**
      * Clear all values from the values array and update the listview. Used when changing rooms.
      */
-    public void clearMessages(){
+    public void clearMessages() {
         this.values.clear();
         notifyDataSetChanged();
     }

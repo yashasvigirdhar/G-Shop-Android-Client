@@ -5,12 +5,16 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
+import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -18,6 +22,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -39,6 +44,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -57,8 +63,10 @@ import me.kevingleason.pubnubchat.R;
  * Sample data to test from console:
  * {"type":"groupMessage","data":{"chatUser":"Dev","chatMsg":"Hello World!","chatTime":1436642192966}}
  */
-public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewAdapter.ChatMessageClickListener {
+public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewAdapter.ChatMessageClickListener, View.OnClickListener {
     private Pubnub mPubNub;
+
+    static final int REQUEST_IMAGE_CAPTURE = 1;
 
     private EditText mMessageET;
     private MenuItem mHereNow;
@@ -75,6 +83,12 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
 
     private GoogleCloudMessaging gcm;
     private String gcmRegId;
+
+    ImageButton ibSendMedia;
+
+    AlertDialog.Builder dialogBuilder;
+    AlertDialog sendMediaDialog;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,6 +108,8 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
 
         this.username = mSharedPrefs.getString(Constants.CHAT_USERNAME, "Anonymous");
 
+        findViewById(R.id.bSendMessage).setOnClickListener(this);
+
         mRecyclerView = (RecyclerView) findViewById(R.id.recyclerViewChat);
         mRecyclerView.setHasFixedSize(true);
         RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(this);
@@ -103,13 +119,23 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
         mAdapter.userPresence(this.username, "join"); // Set user to online. Status changes handled in presence
         mRecyclerView.setAdapter(mAdapter);
 
-        this.mMessageET = (EditText) findViewById(R.id.message_et);
+        mMessageET = (EditText) findViewById(R.id.message_et);
 
         mToolbar = (Toolbar) findViewById(R.id.toolbarChat);
         setSupportActionBar(mToolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setTitle(channel);
 
+        ibSendMedia = (ImageButton) findViewById(R.id.ibSendMedia);
+        ibSendMedia.setOnClickListener(this);
+
+        dialogBuilder = new AlertDialog.Builder(this);
+        LayoutInflater inflater = this.getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.send_media_dialog, null);
+        dialogBuilder.setView(dialogView);
+        sendMediaDialog = dialogBuilder.create();
+        dialogView.findViewById(R.id.tvScreenShare).setOnClickListener(this);
+        dialogView.findViewById(R.id.tvCameraShare).setOnClickListener(this);
 
         initPubNub();
     }
@@ -359,10 +385,24 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
                         JSONObject jsonObj = (JSONObject) message;
                         JSONObject json = jsonObj.getJSONObject("data");
                         String name = json.getString(Constants.JSON_USER);
+                        if (name.equals(mPubNub.getUUID())) return; // Ignore own messages
+
                         String msg = json.getString(Constants.JSON_MSG);
                         long time = json.getLong(Constants.JSON_TIME);
-                        if (name.equals(mPubNub.getUUID())) return; // Ignore own messages
-                        final ChatMessage chatMsg = new ChatMessage(name, msg, time);
+
+                        int isImage = json.getInt(Constants.JSON_IS_IMAGE);
+                        final ChatMessage chatMsg;
+
+                        if (isImage == 0) {
+                            chatMsg = new ChatMessage(name, msg, time, null);
+                        } else {
+                            String encodedImage = json.getString(Constants.JSON_IMAGE_URI);
+                            byte[] decodedString = Base64.decode(encodedImage, Base64.DEFAULT);
+                            Bitmap bt = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+                            chatMsg = new ChatMessage(name, msg, time, bt);
+                            chatMsg.setImageUri(encodedImage);
+                        }
+
                         ChatActivity.this.runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
@@ -453,7 +493,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
                     JSONArray json = (JSONArray) message;
                     Log.d("History", json.toString());
                     final JSONArray messages = json.getJSONArray(0);
-                    final List<ChatMessage> chatMsgs = new ArrayList<ChatMessage>();
+                    final List<ChatMessage> chatMsgs = new ArrayList<>();
                     for (int i = 0; i < messages.length(); i++) {
                         try {
                             if (!messages.getJSONObject(i).has("data")) continue;
@@ -461,7 +501,23 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
                             String name = jsonMsg.getString(Constants.JSON_USER);
                             String msg = jsonMsg.getString(Constants.JSON_MSG);
                             long time = jsonMsg.getLong(Constants.JSON_TIME);
-                            ChatMessage chatMsg = new ChatMessage(name, msg, time);
+
+                            //check here if msg is text or image
+
+                            int isImage = jsonMsg.getInt(Constants.JSON_IS_IMAGE);
+
+                            final ChatMessage chatMsg;
+
+                            if (isImage == 0) {
+                                chatMsg = new ChatMessage(name, msg, time, null);
+                            } else {
+                                String encodedImage = jsonMsg.getString(Constants.JSON_IMAGE_URI);
+                                byte[] decodedString = Base64.decode(encodedImage, Base64.DEFAULT);
+                                Bitmap bt = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+                                chatMsg = new ChatMessage(name, msg, time, bt);
+                                chatMsg.setImageUri(encodedImage);
+                            }
+
                             chatMsgs.add(chatMsg);
                         } catch (JSONException e) { // Handle errors silently
                             e.printStackTrace();
@@ -503,19 +559,20 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
 
     /**
      * Publish message to current channel.
-     *
-     * @param view The 'SEND' Button which is clicked to trigger a sendMessage call.
      */
-    public void sendMessage(View view) {
-        String message = mMessageET.getText().toString();
-        if (message.equals("")) return;
-        mMessageET.setText("");
-        ChatMessage chatMsg = new ChatMessage(username, message, System.currentTimeMillis());
+    public void sendMessage(int isImage, String message, Bitmap image) {
+
+        ChatMessage chatMsg = new ChatMessage(username, message, System.currentTimeMillis(), image);
         try {
             JSONObject json = new JSONObject();
             json.put(Constants.JSON_USER, chatMsg.getUsername());
             json.put(Constants.JSON_MSG, chatMsg.getMessage());
             json.put(Constants.JSON_TIME, chatMsg.getTimeStamp());
+            if (isImage == 1) {
+                String encodedImage = convertAndCompressImage(image);
+                json.put(Constants.JSON_IMAGE_URI, encodedImage);
+            }
+            json.put(Constants.JSON_IS_IMAGE, isImage);
             publish(Constants.JSON_GROUP, json);
         } catch (JSONException e) {
             e.printStackTrace();
@@ -699,6 +756,92 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
     public void onItemClick(int position, View v) {
         ChatMessage chatMsg = mAdapter.getItem(position);
         sendNotification(chatMsg.getUsername());
+    }
+
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.bSendMessage:
+                String message = mMessageET.getText().toString();
+                if (message.equals("")) return;
+                mMessageET.setText("");
+                sendMessage(0, message, null);
+                break;
+            case R.id.ibSendMedia:
+                sendMediaDialog.show();
+                break;
+            case R.id.tvScreenShare:
+                if (sendMediaDialog.isShowing())
+                    sendMediaDialog.dismiss();
+                takeScreenshotAndSend();
+                break;
+            case R.id.tvCameraShare:
+                if (sendMediaDialog.isShowing())
+                    sendMediaDialog.dismiss();
+                dispatchTakePictureIntent();
+        }
+    }
+
+    private void takeScreenshotAndSend() {
+
+        // create bitmap screen capture
+        View v1 = getWindow().getDecorView().getRootView();
+        v1.setDrawingCacheEnabled(true);
+        Bitmap bitmap = Bitmap.createBitmap(v1.getDrawingCache());
+        v1.setDrawingCacheEnabled(false);
+        sendMessage(1, "dummy", bitmap);
+
+    }
+
+    public String convertAndCompressImage(Bitmap image) {
+
+        int MAX_IMAGE_SIZE = 100 * 100;
+        int streamLength = MAX_IMAGE_SIZE;
+        int compressQuality = 105;
+        ByteArrayOutputStream bmpStream = new ByteArrayOutputStream();
+        while (streamLength >= MAX_IMAGE_SIZE && compressQuality > 5) {
+            try {
+                bmpStream.flush();//to avoid out of memory error
+                bmpStream.reset();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            compressQuality -= 5;
+            image.compress(Bitmap.CompressFormat.JPEG, compressQuality, bmpStream);
+            byte[] bmpPicByteArray = bmpStream.toByteArray();
+            streamLength = bmpPicByteArray.length;
+            Log.d("image processing", "Quality: " + compressQuality);
+            Log.d("image processing", "Size: " + streamLength);
+        }
+
+        try {
+            bmpStream.flush();//to avoid out of memory error
+            bmpStream.reset();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        image.compress(Bitmap.CompressFormat.JPEG, 5, bmpStream); //bm is the bitmap object
+        byte[] b = bmpStream.toByteArray();
+        String encodedImage = Base64.encodeToString(b, Base64.DEFAULT);
+
+        return encodedImage;
+    }
+
+    private void dispatchTakePictureIntent() {
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+            Bundle extras = data.getExtras();
+            Bitmap imageBitmap = (Bitmap) extras.get("data");
+            sendMessage(1, "dummy", imageBitmap);
+        }
     }
 
     private class RegisterTask extends AsyncTask<Void, Void, String> {
