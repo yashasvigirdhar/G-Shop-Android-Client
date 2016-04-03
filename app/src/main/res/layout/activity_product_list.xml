@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ColorBack"
+    android:id="@+id/circular_click_area"
+    tools:context=".activities.ProductListActivity">
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@color/ColorBack">
+
+    <include
+        android:id="@+id/my_toolbar"
+        layout="@layout/toolbar"></include>
+
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/rv"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+    </android.support.v7.widget.RecyclerView>
+
+
+
+</LinearLayout>
+
+    <com.flipkart.chatheads.ui.ChatHeadContainer
+        android:id="@+id/chat_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="invisible">
+
+    </com.flipkart.chatheads.ui.ChatHeadContainer>
+
+    <TextView
+        android:id="@+id/chat_head_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Chat head label"
+        android:textColor="@android:color/white"
+        android:visibility="invisible"
+        />
+
+</RelativeLayout>

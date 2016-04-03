@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
 
     <string name="app_name">Walmart GShop</string>
@@ -16,6 +15,4 @@
     <string name="action_sign_out">Sign Out</string>
     <string name="here_now">Here Now:</string>
     <string name="action_where_now">Where now</string>
-
-
 </resources>

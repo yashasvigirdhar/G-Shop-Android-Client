@@ -1,29 +1,30 @@
 package com.walmart.gshop.adapters;
 
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import com.walmart.gshop.R;
+
 import java.util.ArrayList;
 import java.util.List;
-
-import me.kevingleason.pubnubchat.R;
 
 /**
  * Created by yashasvi on 1/21/16.
  */
 public class ChannelsRecyclerViewAdapter extends RecyclerView.Adapter<ChannelsRecyclerViewAdapter.DataObjectHolder> {
 
-    String LOG_TAG = "ChannelsRecyclerViewAdapter";
     private List<String> mDataset;
     private static MyClickListener myClickListener;
+   // private final AdapterView.OnItemClickListener listener;
 
     public ChannelsRecyclerViewAdapter(ArrayList<String> myDataset) {
         mDataset = myDataset;
+      //  this.listener = listener;
     }
+
 
     @Override
     public DataObjectHolder onCreateViewHolder(ViewGroup parent, int viewType) {
@@ -34,12 +35,12 @@ public class ChannelsRecyclerViewAdapter extends RecyclerView.Adapter<ChannelsRe
     }
 
     @Override
-    public void onBindViewHolder(DataObjectHolder holder, int position) {
+    public void onBindViewHolder(DataObjectHolder holder, final int position) {
         holder.tvChannelName.setText(mDataset.get(position));
+
     }
 
     public void updateData(List<String> data) {
-        Log.i(LOG_TAG, "update data");
         mDataset = data;
         notifyDataSetChanged();
     }
@@ -47,6 +48,11 @@ public class ChannelsRecyclerViewAdapter extends RecyclerView.Adapter<ChannelsRe
     @Override
     public int getItemCount() {
         return mDataset.size();
+    }
+
+    public String getItem(int position)
+    {
+        return mDataset.get(position);
     }
 
     public void setOnItemClickListener(MyClickListener myClickListener) {
@@ -71,6 +77,5 @@ public class ChannelsRecyclerViewAdapter extends RecyclerView.Adapter<ChannelsRe
     public interface MyClickListener {
         void onItemClick(int position, View v);
     }
-
 
 }

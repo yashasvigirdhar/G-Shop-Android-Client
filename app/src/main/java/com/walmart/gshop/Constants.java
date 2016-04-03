@@ -10,6 +10,7 @@ package com.walmart.gshop;
 public class Constants {
     public static final String PUBLISH_KEY = "pub-c-69ab3b55-875d-4fc7-be5a-c5143f0b01da";
     public static final String SUBSCRIBE_KEY = "sub-c-404cb59e-f7f9-11e5-861b-02ee2ddab7fe";
+    public static final String PRODUCTS_LIST = "Products List";
 
     public static String username = "yash";
 
@@ -32,5 +33,7 @@ public class Constants {
     public static final String GCM_POKE_FROM = "gcmPokeFrom"; // Get this from
     public static final String GCM_CHAT_ROOM = "gcmChatRoom"; // Get this from
     public final static int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
+
+
 
 }

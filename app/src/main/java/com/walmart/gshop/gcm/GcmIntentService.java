@@ -14,9 +14,9 @@ import android.util.Log;
 
 import com.google.android.gms.gcm.GoogleCloudMessaging;
 import com.walmart.gshop.Constants;
+import com.walmart.gshop.R;
 import com.walmart.gshop.activities.ChatActivity;
-
-import me.kevingleason.pubnubchat.R;
+import com.walmart.gshop.gcm.GcmBroadcastReceiver;
 
 /**
  * Created by GleasonK on 7/14/15.

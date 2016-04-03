@@ -10,6 +10,7 @@ import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.support.v4.app.Fragment;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -20,9 +21,11 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ListView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -36,9 +39,12 @@ import com.pubnub.api.PubnubError;
 import com.pubnub.api.PubnubException;
 import com.walmart.gshop.Constants;
 import com.walmart.gshop.MyApplication;
+import com.walmart.gshop.ProductList;
+import com.walmart.gshop.R;
 import com.walmart.gshop.adapters.ChatRecyclerViewAdapter;
 import com.walmart.gshop.callbacks.BasicCallback;
 import com.walmart.gshop.models.ChatMessage;
+import com.walmart.gshop.models.Product;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -51,8 +57,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import me.kevingleason.pubnubchat.R;
-
 /**
  * Main Activity is where all the magic happens. To keep this demo simple I did not use fragment
  * views, simply a ListView that is populated by a custom adapter, ChatAdapter. If you want to
@@ -63,20 +67,19 @@ import me.kevingleason.pubnubchat.R;
  * Sample data to test from console:
  * {"type":"groupMessage","data":{"chatUser":"Dev","chatMsg":"Hello World!","chatTime":1436642192966}}
  */
-public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewAdapter.ChatMessageClickListener, View.OnClickListener {
-    private Pubnub mPubNub;
-
+public class ChatActivity extends Fragment implements View.OnClickListener, ChatRecyclerViewAdapter.ChatMessageClickListener {
     static final int REQUEST_IMAGE_CAPTURE = 1;
 
+
+    private Pubnub mPubNub;
     private EditText mMessageET;
     private MenuItem mHereNow;
+    private ListView mListView;
+    Toolbar mToolbar;
+    private SharedPreferences mSharedPrefs;
 
     private RecyclerView mRecyclerView;
     private ChatRecyclerViewAdapter mAdapter;
-
-    Toolbar mToolbar;
-
-    private SharedPreferences mSharedPrefs;
 
     private String username;
     private String channel = "MainChat";
@@ -89,48 +92,64 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
     AlertDialog.Builder dialogBuilder;
     AlertDialog sendMediaDialog;
 
+    public static ChatActivity newInstance(String channel) {
+        ChatActivity ch = new ChatActivity();
+        Bundle bundle = new Bundle();
+        bundle.putString("channel", channel);
+        ch.setArguments(bundle);
+        return ch;
+    }
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
 
-        mSharedPrefs = getSharedPreferences(Constants.CHAT_PREFS, MODE_PRIVATE);
+        View v = inflater.inflate(R.layout.activity_chat, container, false);
+        return v;
 
-        mPubNub = ((MyApplication) getApplication()).getmPubNub();
+    }
 
-        Bundle extras = getIntent().getExtras();
-        if (extras != null) {
-            Log.d("Main-bundle", extras.toString() + " Has Chat: " + extras.getString(Constants.CHAT_ROOM));
-            if (extras.containsKey(Constants.CHAT_ROOM))
-                this.channel = extras.getString(Constants.CHAT_ROOM);
-        }
+    @Override
+    public void onActivityCreated(Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+
+
+        mSharedPrefs = getContext().getSharedPreferences(Constants.CHAT_PREFS, getActivity().MODE_PRIVATE);
+
+        mPubNub = MyApplication.getmPubNub();
+
+
+        this.channel = getArguments().getString("channel");
 
         this.username = mSharedPrefs.getString(Constants.CHAT_USERNAME, "Anonymous");
 
-        findViewById(R.id.bSendMessage).setOnClickListener(this);
+        this.mMessageET = (EditText) getView().findViewById(R.id.message_et);
 
-        mRecyclerView = (RecyclerView) findViewById(R.id.recyclerViewChat);
+        getView().findViewById(R.id.bSendMessage).setOnClickListener(this);
+
+        mRecyclerView = (RecyclerView) getView().findViewById(R.id.recyclerViewChat);
         mRecyclerView.setHasFixedSize(true);
-        RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(this);
+        RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(getActivity());
         mRecyclerView.setLayoutManager(mLayoutManager);
 
-        mAdapter = new ChatRecyclerViewAdapter(this, new ArrayList<ChatMessage>());
+        mAdapter = new ChatRecyclerViewAdapter(getContext(), new ArrayList<ChatMessage>());
         mAdapter.userPresence(this.username, "join"); // Set user to online. Status changes handled in presence
         mRecyclerView.setAdapter(mAdapter);
 
-        mMessageET = (EditText) findViewById(R.id.message_et);
+        mAdapter.setChatMessageClickListener(this);
 
-        mToolbar = (Toolbar) findViewById(R.id.toolbarChat);
-        setSupportActionBar(mToolbar);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setTitle(channel);
+        mMessageET = (EditText) getView().findViewById(R.id.message_et);
 
-        ibSendMedia = (ImageButton) findViewById(R.id.ibSendMedia);
+        mToolbar = (Toolbar) getView().findViewById(R.id.toolbarChat);
+        ((AppCompatActivity) getActivity()).setSupportActionBar(mToolbar);
+        ((AppCompatActivity) getActivity()).getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        ((AppCompatActivity) getActivity()).getSupportActionBar().setTitle(channel);
+
+        ibSendMedia = (ImageButton) getView().findViewById(R.id.ibSendMedia);
         ibSendMedia.setOnClickListener(this);
 
-        dialogBuilder = new AlertDialog.Builder(this);
-        LayoutInflater inflater = this.getLayoutInflater();
+        dialogBuilder = new AlertDialog.Builder(getContext());
+        LayoutInflater inflater = getActivity().getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.send_media_dialog, null);
         dialogBuilder.setView(dialogView);
         sendMediaDialog = dialogBuilder.create();
@@ -142,22 +161,22 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
 
 
     @Override
-    protected void onSaveInstanceState(Bundle outState) {
+    public void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         // TODO: Update to store messages in the array.
     }
 
-    @Override
+
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
+        getActivity().getMenuInflater().inflate(R.menu.menu_main, menu);
         this.mHereNow = menu.findItem(R.id.action_here_now);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
+        // Handle action bar item_main clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
@@ -191,7 +210,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
      * The best practice would be creating a background service in onStop to handle messages.
      */
     @Override
-    protected void onStop() {
+    public void onStop() {
         super.onStop();
         if (this.mPubNub != null)
             this.mPubNub.unsubscribeAll();
@@ -201,9 +220,9 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
      * Instantiate PubNub object if it is null. Subscribe to channel and pull old messages via
      * history.
      */
-    @Override
+
     protected void onRestart() {
-        super.onRestart();
+
         if (this.mPubNub == null) {
             initPubNub();
         } else {
@@ -217,7 +236,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
      * I wanted PubNub to receive messages while the screen is off.
      */
     @Override
-    protected void onDestroy() {
+    public void onDestroy() {
         super.onDestroy();
     }
 
@@ -250,6 +269,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
         this.mPubNub.publish(this.channel, json, new BasicCallback());
     }
 
+
     /**
      * Update here now number, uses a call to the pubnub hereNow function.
      *
@@ -269,7 +289,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
                     for (int i = 0; i < hereNowJSON.length(); i++) {
                         usersOnline.add(hereNowJSON.getString(i));
                     }
-                    ChatActivity.this.runOnUiThread(new Runnable() {
+                    getActivity().runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             if (mHereNow != null)
@@ -299,7 +319,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
                     for (int i = 0; i < channels.length(); i++) {
                         usersOnline.add(channels.getString(i));
                     }
-                    ChatActivity.this.runOnUiThread(new Runnable() {
+                    getActivity().runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             alertHereNow(usersOnline, "Where now");
@@ -349,13 +369,13 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
                     final boolean online = state.has(Constants.STATE_LOGIN);
                     final long loginTime = online ? state.getLong(Constants.STATE_LOGIN) : 0;
 
-                    ChatActivity.this.runOnUiThread(new Runnable() {
+                    getActivity().runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             if (!online)
-                                Toast.makeText(ChatActivity.this, user + " is not online.", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getContext(), user + " is not online.", Toast.LENGTH_SHORT).show();
                             else
-                                Toast.makeText(ChatActivity.this, user + " logged in since " + ChatRecyclerViewAdapter.formatTimeStamp(loginTime), Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getContext(), user + " logged in since " + ChatRecyclerViewAdapter.formatTimeStamp(loginTime), Toast.LENGTH_SHORT).show();
 
                         }
                     });
@@ -403,7 +423,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
                             chatMsg.setImageUri(encodedImage);
                         }
 
-                        ChatActivity.this.runOnUiThread(new Runnable() {
+                        getActivity().runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
                                 mAdapter.addMessage(chatMsg);
@@ -456,7 +476,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
                         final int occ = json.getInt("occupancy");
                         final String user = json.getString("uuid");
                         final String action = json.getString("action");
-                        ChatActivity.this.runOnUiThread(new Runnable() {
+                        getActivity().runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
                                 mAdapter.userPresence(user, action);
@@ -487,75 +507,85 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
      */
     public void history() {
         mPubNub.history(channel, 100, false, new Callback() {
-            @Override
-            public void successCallback(String channel, final Object message) {
-                try {
-                    JSONArray json = (JSONArray) message;
-                    Log.d("History", json.toString());
-                    final JSONArray messages = json.getJSONArray(0);
-                    final List<ChatMessage> chatMsgs = new ArrayList<>();
-                    for (int i = 0; i < messages.length(); i++) {
+                    @Override
+                    public void successCallback(String channel, final Object message) {
                         try {
-                            if (!messages.getJSONObject(i).has("data")) continue;
-                            JSONObject jsonMsg = messages.getJSONObject(i).getJSONObject("data");
-                            String name = jsonMsg.getString(Constants.JSON_USER);
-                            String msg = jsonMsg.getString(Constants.JSON_MSG);
-                            long time = jsonMsg.getLong(Constants.JSON_TIME);
+                            JSONArray json = (JSONArray) message;
+                            Log.d("History", json.toString());
+                            final JSONArray messages = json.getJSONArray(0);
+                            final List<ChatMessage> chatMsgs = new ArrayList<>();
+                            for (int i = 0; i < messages.length(); i++) {
+                                try {
+                                    if (!messages.getJSONObject(i).has("data")) continue;
+                                    JSONObject jsonMsg = messages.getJSONObject(i).getJSONObject("data");
+                                    String name = jsonMsg.getString(Constants.JSON_USER);
+                                    String msg = jsonMsg.getString(Constants.JSON_MSG);
+                                    long time = jsonMsg.getLong(Constants.JSON_TIME);
 
-                            //check here if msg is text or image
+                                    //check here if msg is text or image
 
-                            int isImage = jsonMsg.getInt(Constants.JSON_IS_IMAGE);
+                                    int isImage = jsonMsg.getInt(Constants.JSON_IS_IMAGE);
 
-                            final ChatMessage chatMsg;
+                                    final ChatMessage chatMsg;
 
-                            if (isImage == 0) {
-                                chatMsg = new ChatMessage(name, msg, time, null);
-                            } else {
-                                String encodedImage = jsonMsg.getString(Constants.JSON_IMAGE_URI);
-                                byte[] decodedString = Base64.decode(encodedImage, Base64.DEFAULT);
-                                Bitmap bt = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
-                                chatMsg = new ChatMessage(name, msg, time, bt);
-                                chatMsg.setImageUri(encodedImage);
+                                    if (isImage == 0) {
+                                        chatMsg = new ChatMessage(name, msg, time, null);
+                                    } else {
+                                        String encodedImage = jsonMsg.getString(Constants.JSON_IMAGE_URI);
+                                        byte[] decodedString = Base64.decode(encodedImage, Base64.DEFAULT);
+
+                                        Bitmap bt = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+                                        chatMsg = new ChatMessage(name, msg, time, bt);
+                                        chatMsg.setImageUri(encodedImage);
+                                    }
+
+                                    chatMsgs.add(chatMsg);
+                                } catch (JSONException e) { // Handle errors silently
+                                    e.printStackTrace();
+                                }
+
+                                getActivity().runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        Toast.makeText(getContext(), "RUNNIN", Toast.LENGTH_SHORT).show();
+                                        mAdapter.setMessages(chatMsgs);
+                                    }
+                                });
                             }
-
-                            chatMsgs.add(chatMsg);
-                        } catch (JSONException e) { // Handle errors silently
+                        } catch (JSONException e) {
                             e.printStackTrace();
                         }
                     }
 
-                    ChatActivity.this.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(ChatActivity.this, "RUNNIN", Toast.LENGTH_SHORT).show();
-                            mAdapter.setMessages(chatMsgs);
-                        }
-                    });
-                } catch (JSONException e) {
-                    e.printStackTrace();
+                    @Override
+                    public void errorCallback(String channel, PubnubError error) {
+                        Log.d("History", error.toString());
+                    }
                 }
-            }
 
-            @Override
-            public void errorCallback(String channel, PubnubError error) {
-                Log.d("History", error.toString());
-            }
-        });
+        );
     }
+
 
     /**
      * Log out, remove username from SharedPreferences, unsubscribe from PubNub, and send user back
      * to the LoginActivity
      */
+
     public void signOut() {
-        mPubNub.unsubscribeAll();
+        this.mPubNub.unsubscribeAll();
         SharedPreferences.Editor edit = mSharedPrefs.edit();
         edit.remove(Constants.CHAT_USERNAME);
         edit.apply();
-        Intent intent = new Intent(this, LoginActivity.class);
-        intent.putExtra("oldUsername", username);
+        Intent intent = new Intent(getContext(), LoginActivity.class);
+        intent.putExtra("oldUsername", this.username);
         startActivity(intent);
     }
+
+    /**
+     * Setup the listview to scroll to bottom anytime it receives a message.
+     */
+
 
     /**
      * Publish message to current channel.
@@ -595,7 +625,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
      */
     private void alertHereNow(Set<String> userSet, String title) {
         List<String> users = new ArrayList<>(userSet);
-        AlertDialog.Builder alertDialog = new AlertDialog.Builder(this);
+        AlertDialog.Builder alertDialog = new AlertDialog.Builder(getContext());
         alertDialog.setTitle(title);
         alertDialog.setNegativeButton("Done", new DialogInterface.OnClickListener() {
             @Override
@@ -603,7 +633,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
                 dialog.dismiss();
             }
         });
-        final ArrayAdapter<String> hnAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, users);
+        final ArrayAdapter<String> hnAdapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, users);
         alertDialog.setAdapter(hnAdapter, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int position) {
@@ -615,50 +645,6 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
     }
 
     /**
-     * Create an alert dialog with a text view to enter a new channel to join. If the channel is
-     * not empty, unsubscribe from the current channel and join the new one.
-     * Then, get messages from history and update the channelView which displays current channel.
-     *
-     * @param view
-     */
-    public void changeChannel(View view) {
-        LayoutInflater li = LayoutInflater.from(this);
-        View promptsView = li.inflate(R.layout.channel_change, null);
-
-        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this);
-        alertDialogBuilder.setView(promptsView);
-
-        final EditText userInput = (EditText) promptsView.findViewById(R.id.editTextDialogUserInput);
-        userInput.setText(this.channel);                       // Set text to current ID
-        userInput.setSelection(userInput.getText().length());  // Move cursor to end
-
-        alertDialogBuilder
-                .setCancelable(false)
-                .setPositiveButton("OK",
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int id) {
-                                String newChannel = userInput.getText().toString();
-                                if (newChannel.equals("")) return;
-
-                                mPubNub.unsubscribe(channel);
-                                mAdapter.clearMessages();
-                                channel = newChannel;
-                                mToolbar.setTitle(channel);
-                                subscribeChannelWithPresence();
-                                history();
-                            }
-                        })
-                .setNegativeButton("Cancel",
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int id) {
-                                dialog.cancel();
-                            }
-                        });
-        AlertDialog alertDialog = alertDialogBuilder.create();
-        alertDialog.show();
-    }
-
-    /**
      * GCM Functionality.
      * In order to use GCM Push notifications you need an API key and a Sender ID.
      * Get your key and ID at - https://developers.google.com/cloud-messaging/
@@ -666,7 +652,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
 
     private void gcmRegister() {
         if (checkPlayServices()) {
-            gcm = GoogleCloudMessaging.getInstance(this);
+            gcm = GoogleCloudMessaging.getInstance(getContext());
             try {
                 gcmRegId = getRegistrationId();
             } catch (Exception e) {
@@ -676,7 +662,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
             if (gcmRegId.isEmpty()) {
                 registerInBackground();
             } else {
-                Toast.makeText(this, "Registration ID already exists: " + gcmRegId, Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), "Registration ID already exists: " + gcmRegId, Toast.LENGTH_SHORT).show();
             }
         } else {
             Log.e("GCM-register", "No valid Google Play Services APK found.");
@@ -688,7 +674,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
     }
 
     private void removeRegistrationId() {
-        SharedPreferences prefs = getSharedPreferences(Constants.CHAT_PREFS, Context.MODE_PRIVATE);
+        SharedPreferences prefs = getContext().getSharedPreferences(Constants.CHAT_PREFS, Context.MODE_PRIVATE);
 
         SharedPreferences.Editor editor = prefs.edit();
         editor.remove(Constants.GCM_REG_ID);
@@ -702,6 +688,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
             json.put(Constants.GCM_POKE_FROM, this.username);
             json.put(Constants.GCM_CHAT_ROOM, this.channel);
             gcmMessage.setData(json);
+
 
             PnMessage message = new PnMessage(
                     this.mPubNub,
@@ -718,13 +705,13 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
     }
 
     private boolean checkPlayServices() {
-        int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
+        int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(getContext());
         if (resultCode != ConnectionResult.SUCCESS) {
             if (GooglePlayServicesUtil.isUserRecoverableError(resultCode)) {
-                GooglePlayServicesUtil.getErrorDialog(resultCode, this, Constants.PLAY_SERVICES_RESOLUTION_REQUEST).show();
+                GooglePlayServicesUtil.getErrorDialog(resultCode, getActivity(), Constants.PLAY_SERVICES_RESOLUTION_REQUEST).show();
             } else {
                 Log.e("GCM-check", "This device is not supported.");
-                finish();
+                getActivity().finish();
             }
             return false;
         }
@@ -736,7 +723,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
     }
 
     private void storeRegistrationId(String regId) {
-        SharedPreferences prefs = getSharedPreferences(Constants.CHAT_PREFS, Context.MODE_PRIVATE);
+        SharedPreferences prefs = getContext().getSharedPreferences(Constants.CHAT_PREFS, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
         editor.putString(Constants.GCM_REG_ID, regId);
         editor.apply();
@@ -744,18 +731,12 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
 
 
     private String getRegistrationId() {
-        SharedPreferences prefs = getSharedPreferences(Constants.CHAT_PREFS, Context.MODE_PRIVATE);
+        SharedPreferences prefs = getContext().getSharedPreferences(Constants.CHAT_PREFS, Context.MODE_PRIVATE);
         return prefs.getString(Constants.GCM_REG_ID, "");
     }
 
     private void sendRegistrationId(String regId) {
         this.mPubNub.enablePushNotificationsOnChannel(this.username, regId, new BasicCallback());
-    }
-
-    @Override
-    public void onItemClick(int position, View v) {
-        ChatMessage chatMsg = mAdapter.getItem(position);
-        sendNotification(chatMsg.getUsername());
     }
 
     @Override
@@ -784,12 +765,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
 
     private void takeScreenshotAndSend() {
 
-        // create bitmap screen capture
-        View v1 = getWindow().getDecorView().getRootView();
-        v1.setDrawingCacheEnabled(true);
-        Bitmap bitmap = Bitmap.createBitmap(v1.getDrawingCache());
-        v1.setDrawingCacheEnabled(false);
-        sendMessage(1, "dummy", bitmap);
+        sendMessage(1, ((MyApplication) getActivity().getApplication()).getScreenShareLink(), ((MyApplication) getActivity().getApplication()).getScreenShareBitmap());
 
     }
 
@@ -821,7 +797,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
             e.printStackTrace();
         }
 
-        image.compress(Bitmap.CompressFormat.JPEG, 5, bmpStream); //bm is the bitmap object
+        image.compress(Bitmap.CompressFormat.JPEG, 1, bmpStream); //bm is the bitmap object
         byte[] b = bmpStream.toByteArray();
         String encodedImage = Base64.encodeToString(b, Base64.DEFAULT);
 
@@ -830,17 +806,37 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
 
     private void dispatchTakePictureIntent() {
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+        if (takePictureIntent.resolveActivity(getActivity().getPackageManager()) != null) {
             startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
         }
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == getActivity().RESULT_OK) {
             Bundle extras = data.getExtras();
             Bitmap imageBitmap = (Bitmap) extras.get("data");
             sendMessage(1, "dummy", imageBitmap);
+        }
+    }
+
+    @Override
+    public void onItemClick(int position, View v) {
+        ChatMessage msg = mAdapter.getItem(position);
+        if (msg.isImage()) {
+            String link = msg.getMessage();
+            if (link.equals(Constants.PRODUCTS_LIST)) {
+                Intent i = new Intent(getContext(), ProductListActivity.class);
+                startActivity(i);
+            } else {
+                //get product
+                Product product = ProductList.getProductByName(link);
+                Intent intent = new Intent(getContext(), ProductDetailActivity.class);
+                intent.putExtra("productName", product.name);
+                intent.putExtra("productDescription", product.description);
+                intent.putExtra("productPrice", product.price);
+                startActivity(intent);
+            }
         }
     }
 
@@ -850,7 +846,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
             String msg = "";
             try {
                 if (gcm == null) {
-                    gcm = GoogleCloudMessaging.getInstance(ChatActivity.this);
+                    gcm = GoogleCloudMessaging.getInstance(getContext());
                 }
                 gcmRegId = gcm.register(Constants.GCM_SENDER_ID);
                 msg = "Device registered, registration ID: " + gcmRegId;
@@ -871,7 +867,7 @@ public class ChatActivity extends AppCompatActivity implements ChatRecyclerViewA
         protected Void doInBackground(Void... params) {
             try {
                 if (gcm == null) {
-                    gcm = GoogleCloudMessaging.getInstance(ChatActivity.this);
+                    gcm = GoogleCloudMessaging.getInstance(getContext());
                 }
 
                 // Unregister from GCM

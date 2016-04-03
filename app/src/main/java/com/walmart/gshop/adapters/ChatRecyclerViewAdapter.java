@@ -9,6 +9,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.walmart.gshop.models.ChatMessage;
+import com.walmart.gshop.R;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -16,7 +17,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import me.kevingleason.pubnubchat.R;
+
 
 /**
  * Created by yashasvi on 1/21/16.
@@ -122,10 +123,6 @@ public class ChatRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerView.V
     @Override
     public int getItemCount() {
         return values.size();
-    }
-
-    public void setOnItemClickListener(ChatMessageClickListener chatMessageClickListener) {
-        chatMessageClickListener = chatMessageClickListener;
     }
 
     public ChatMessage getItem(int position) {
